@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Weather</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+
+<body>
+  <main class="shell">
+    <div class="layout">
+
+      <!-- LEFT: Weather Panel -->
+      <section class="panel">
+        <header class="top">
+          <div class="left">
+            <div class="tempWrap">
+              <div class="icon" id="icon">☀️</div>
+              <div class="temp">
+                <span id="tempNow">--</span><span class="deg">°</span>
+                <button class="unitToggle" id="unitToggle" type="button">°C</button>
+              </div>
+            </div>
+
+            <div class="meta">
+              <div><span class="label">Precipitation:</span> <span id="precNow">--%</span></div>
+              <div><span class="label">Humidity:</span> <span id="humNow">--%</span></div>
+              <div><span class="label">Wind:</span> <span id="windNow">--</span></div>
+            </div>
+          </div>
+
+          <div class="right">
+            <div class="title" id="place">Weather</div>
+            <div class="sub" id="when">--</div>
+            <div class="cond" id="condNow">--</div>
+          </div>
+        </header>
+
+        <div class="searchRow">
+          <input id="city" type="text" placeholder="Search city..." />
+          <button class="btn" id="searchBtn" type="button">Search</button>
+        </div>
+
+        <nav class="tabs" aria-label="weather tabs">
+          <button class="tab active" type="button">Temperature</button>
+          <button class="tab" type="button">Precipitation</button>
+          <button class="tab" type="button">Wind</button>
+        </nav>
+
+        <section class="chartCard">
+          <div class="chartTop">
+            <div class="chartLabel">Hourly temperature</div>
+          </div>
+
+          <div class="chartWrap">
+            <svg class="chart" id="chartSvg" viewBox="0 0 900 240" preserveAspectRatio="none" aria-hidden="true">
+              <line x1="0" y1="200" x2="900" y2="200" class="grid" />
+              <path class="area" id="areaPath" d="" />
+              <path class="line" id="linePath" d="" />
+            </svg>
+
+            <div class="points" id="chartPoints"></div>
+            <div class="times" id="chartTimes"></div>
+          </div>
+        </section>
+
+        <section class="week" id="weekRow"></section>
+
+        <footer class="foot">
+          <div id="result"></div>
+          <div class="source">Weather + Windy Map</div>
+        </footer>
+      </section>
+
+      <!-- RIGHT: Windy Map Panel -->
+      <section class="mapPanel">
+        <header class="mapHeader">
+          <div>
+            <div class="mapTitle">Live Wind Map</div>
+            <div class="mapSub">Windy-style embed</div>
+          </div>
+        </header>
+
+        <div class="mapFrame">
+          <iframe
+            id="windyFrame"
+            title="Windy Map"
+            src="https://embed.windy.com/embed2.html?lat=24.86&lon=67.01&detailLat=24.86&detailLon=67.01&width=650&height=450&zoom=5&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=true&metricWind=km%2Fh&metricTemp=%C2%B0C"
+            frameborder="0"
+          ></iframe>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
