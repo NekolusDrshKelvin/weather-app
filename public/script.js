@@ -31,130 +31,43 @@ const windyFrame = el("windyFrame");
 function formatLocalTime(unixSeconds, timezoneOffsetSeconds) {
   const ms = (unixSeconds + timezoneOffsetSeconds) * 1000;
   const d = new Date(ms);
-  const day = d.toLocaleDateString(undefined, { weekday: "long" });
-  const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  return `${day} ${time}`;
-}
-
-function dayShortFromUnix(unixSeconds, tzOffset) {
-  const ms = (unixSeconds + tzOffset) * 1000;
-  return new Date(ms).toLocaleDateString(undefined, { weekday: "short" });
+  return d.toLocaleString();
 }
 
 function timeFromUnix(unixSeconds, tzOffset) {
   const ms = (unixSeconds + tzOffset) * 1000;
-  return new Date(ms).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function toWindString(speed) {
   return unit === "metric" ? `${Math.round(speed)} m/s` : `${Math.round(speed)} mph`;
 }
 
-function emojiForWeather(main, isNight) {
+function emojiForWeather(main) {
   const m = (main || "").toLowerCase();
-  if (m.includes("thunder")) return "⛈️";
-  if (m.includes("drizzle")) return "🌦️";
   if (m.includes("rain")) return "🌧️";
-  if (m.includes("snow")) return "❄️";
-  if (m.includes("cloud")) return isNight ? "☁️" : "⛅";
-  if (m.includes("mist") || m.includes("fog") || m.includes("haze")) return "🌫️";
-  return isNight ? "🌙" : "☀️";
+  if (m.includes("cloud")) return "☁️";
+  if (m.includes("clear")) return "☀️";
+  return "🌡️";
 }
 
 function setWindyMap(lat, lon) {
-  const zoom = 6;
-  const windyUnitsWind = unit === "metric" ? "km%2Fh" : "mph";
-  const windyUnitsTemp = unit === "metric" ? "%C2%B0C" : "%C2%B0F";
-
-  windyFrame.src =
-    `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}` +
-    `&detailLat=${lat}&detailLon=${lon}` +
-    `&zoom=${zoom}&level=surface&overlay=wind` +
-    `&metricWind=${windyUnitsWind}&metricTemp=${windyUnitsTemp}`;
+  windyFrame.src = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&zoom=5`;
 }
 
 function showError(msg) {
   result.textContent = msg;
 }
 
-// ====== CHART ======
-function buildChart(temps, labelsTimes) {
-  if (!temps.length) return;
-
-  const W = 900, H = 240, topPad = 30, bottomY = 200;
-  const minT = Math.min(...temps);
-  const maxT = Math.max(...temps);
-  const range = Math.max(1, maxT - minT);
-
-  const xs = temps.map((_, i) => i * (W / (temps.length - 1)));
-  const ys = temps.map(t => bottomY - ((t - minT) / range) * (bottomY - topPad));
-
-  let d = `M${xs[0]},${ys[0]}`;
-  for (let i = 1; i < xs.length; i++) {
-    const cx = (xs[i - 1] + xs[i]) / 2;
-    d += ` C${cx},${ys[i - 1]} ${cx},${ys[i]} ${xs[i]},${ys[i]}`;
-  }
-
-  linePath.setAttribute("d", d);
-  areaPath.setAttribute("d", `${d} L${W},${H} L0,${H} Z`);
-
-  chartPoints.innerHTML = "";
-  temps.forEach((t, i) => {
-    const span = document.createElement("span");
-    span.style.left = `${(xs[i] / W) * 100}%`;
-    span.textContent = `${Math.round(t)}°`;
-    chartPoints.appendChild(span);
-  });
-
-  chartTimes.innerHTML = "";
-  labelsTimes.forEach(txt => {
-    const span = document.createElement("span");
-    span.textContent = txt;
-    chartTimes.appendChild(span);
-  });
-}
-
-// ====== DAILY ======
-function buildDailyCards(list, tzOffset) {
-  const byDate = new Map();
-
-  list.forEach(item => {
-    const key = new Date((item.dt + tzOffset) * 1000).toISOString().slice(0,10);
-    if (!byDate.has(key)) byDate.set(key, []);
-    byDate.get(key).push(item);
-  });
-
-  weekRow.innerHTML = "";
-
-  Array.from(byDate.values()).slice(0, 7).forEach(items => {
-    const temps = items.map(x => x.main.temp);
-    const hi = Math.max(...temps);
-    const lo = Math.min(...temps);
-
-    const best = items[Math.floor(items.length / 2)];
-
-    const card = document.createElement("div");
-    card.className = "day";
-
-    card.innerHTML = `
-      <div>${dayShortFromUnix(best.dt, tzOffset)}</div>
-      <div>${emojiForWeather(best.weather[0].main)}</div>
-      <div>${Math.round(hi)}° / ${Math.round(lo)}°</div>
-    `;
-
-    weekRow.appendChild(card);
-  });
-}
-
 // ====== API ======
 async function fetchCurrent(city) {
-  const res = await fetch(`/api/weather/${encodeURIComponent(city)}`);
+  const res = await fetch(`/api/weather?city=${encodeURIComponent(city)}&unit=${unit}`);
   if (!res.ok) throw new Error("City not found");
   return res.json();
 }
 
 async function fetchForecast(city) {
-  const res = await fetch(`/api/forecast/${encodeURIComponent(city)}`);
+  const res = await fetch(`/api/forecast?city=${encodeURIComponent(city)}&unit=${unit}`);
   if (!res.ok) throw new Error("Forecast error");
   return res.json();
 }
@@ -182,15 +95,20 @@ async function loadCity(city) {
 
     setWindyMap(current.coord.lat, current.coord.lon);
 
-    const list = forecast.list;
-    const hourly = list.slice(0, 8);
+    // ====== SIMPLE HOURLY ======
+    const hourly = forecast.list.slice(0, 6);
 
-    buildChart(
-      hourly.map(x => x.main.temp),
-      hourly.map(x => timeFromUnix(x.dt, forecast.city.timezone))
-    );
+    chartPoints.innerHTML = hourly.map(x => `<span>${Math.round(x.main.temp)}°</span>`).join("");
+    chartTimes.innerHTML = hourly.map(x => `<span>${timeFromUnix(x.dt, tz)}</span>`).join("");
 
-    buildDailyCards(list, forecast.city.timezone);
+    // ====== SIMPLE WEEK ======
+    weekRow.innerHTML = forecast.list.slice(0, 7).map(x => `
+      <div class="day">
+        <div>${timeFromUnix(x.dt, tz)}</div>
+        <div>${emojiForWeather(x.weather[0].main)}</div>
+        <div>${Math.round(x.main.temp)}°</div>
+      </div>
+    `).join("");
 
     result.textContent = "";
   } catch (e) {
